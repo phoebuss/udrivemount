@@ -1,1 +1,1 @@
-ENV{ID_USB_DRIVER}=="usb-storage", ENV{DEVTYPE}=="partition", RUN+="/bin/systemctl restart udrivemount@%k.service"
+ENV{ID_PATH}=="*usb*", ENV{DEVTYPE}=="partition", RUN+="/bin/systemctl restart udrivemount@%k.service"
