@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+log() {
+    logger -st "$0" $1
+}
+
+[ $EUID -eq 0 ] || {
+    echo "Please run this tool with root privilege!!"
+    exit 13
+}
+
+[ -n "$1" ] || {
+    echo "Please provide device name."
+    exit 22
+}
+
+DEV=${1##*/}
+DEVPATH="/dev/${DEV:-NOT_VALID}"
+
+DEV_NOT_EXIST=1
+[ -b $DEVPATH ] && DEV_NOT_EXIST=0
+DEV_NOT_MOUNTED=1
+MOUNTPOINT=`grep $DEVPATH /etc/mtab | cut -d ' ' -f2`
+[ -n "$MOUNTPOINT" ] && DEV_NOT_MOUNTED=0
+
+if [ $DEV_NOT_EXIST -eq 1 -a $DEV_NOT_MOUNTED -eq 0 ]; then
+    log "un-mount $DEVPATH and delete mount point $MOUNTPOINT"
+    umount $DEVPATH
+    rm -r $MOUNTPOINT
+    exit 0
+fi
+
+if [ $DEV_NOT_EXIST -eq 0 -a $DEV_NOT_MOUNTED -eq 1 ]; then
+    unset TYPE LABEL PARTLABEL UUID
+    export `blkid -o export $DEVPATH`
+    if [ x"$TYPE" != x"ext4" -a x"$TYPE" != x"ntfs" -a x"$TYPE" != x"vfat" ]; then
+       log "unknown type $TYPE for dev $DEVPATH, skip it" 
+       exit 0
+    fi
+
+    MOUNTPOINT="/media/udrive/${LABEL:-${PARTLABEL:-${UUID}}}"
+    log "mounting $DEVPATH to mount point $MOUNTPOINT"
+    mkdir -p $MOUNTPOINT
+    mount $DEVPATH $MOUNTPOINT
+    chmod g+w $MOUNTPOINT
+fi
